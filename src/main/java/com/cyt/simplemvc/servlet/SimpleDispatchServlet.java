@@ -1,10 +1,8 @@
 package com.cyt.simplemvc.servlet;
 
-import com.cyt.simplemvc.annotation.MyAutowired;
-import com.cyt.simplemvc.annotation.MyController;
-import com.cyt.simplemvc.annotation.MyRequestMapping;
-import com.cyt.simplemvc.annotation.MyService;
+import com.cyt.simplemvc.annotation.*;
 import com.cyt.simplemvc.controller.MyTestController;
+import com.cyt.simplemvc.util.ConvertStringToBaseType;
 import com.cyt.simplemvc.util.ScanClassUtil;
 import org.apache.commons.lang.StringUtils;
 
@@ -86,11 +84,39 @@ public class SimpleDispatchServlet extends HttpServlet {
         Object obj = urlBeans.get(url);
         Method method = urlMethods.get(url);
         try {
-            Class[] classes = method.getParameterTypes();
-            for (Class clazz : classes) {
-                System.out.println(clazz.getName());
+            Object page;
+            Parameter[] parameters = method.getParameters();
+            if (parameters.length <= 0) {
+                 page = method.invoke(obj);
+            } else {
+                Object[] parameterValues = new Object[parameters.length];
+                for (int i=0; i<parameters.length; i++) {
+                    Parameter parameter = parameters[i];
+                    Class clazz = parameter.getType();
+                    if (clazz.isAssignableFrom(HttpServletResponse.class) || clazz.isAssignableFrom(HttpServletRequest.class)
+                            || clazz.isAssignableFrom(HttpSession.class)) {
+                        parameterValues[i] = getDefaultParamValue(clazz, req, resp);
+                    } else {
+                        MyRequestParam myRequestParam = parameter.getAnnotation(MyRequestParam.class);
+                        String paramName = parameter.getName();
+                        if(myRequestParam != null && StringUtils.isNotBlank(myRequestParam.value())) {
+                            paramName = myRequestParam.value();
+                        }
+
+                        if (clazz.isArray()) {
+                            String[] paramValue = req.getParameterValues(paramName);
+                        } else {
+                            String paramValue = req.getParameter(paramName);
+                            if (clazz == String.class) {
+                                parameterValues[i] = paramValue;
+                            } else {
+                                parameterValues[i] = ConvertStringToBaseType.convert(paramValue, clazz);
+                            }
+                        }
+                    }
+                }
+                page = method.invoke(obj, parameterValues);
             }
-            Object page = method.invoke(obj);
             if (page != null) {
                 req.getRequestDispatcher(modelView(page.toString())).forward(req, resp);
             }
@@ -99,6 +125,19 @@ public class SimpleDispatchServlet extends HttpServlet {
         } catch (InvocationTargetException e) {
             e.printStackTrace();
         }
+    }
+
+    private Object getDefaultParamValue(Class clazz, HttpServletRequest req, HttpServletResponse resp) {
+        if (clazz.isAssignableFrom(HttpServletRequest.class)) {
+            return req;
+        }
+        if (clazz.isAssignableFrom(HttpServletResponse.class)) {
+            return resp;
+        }
+        if (clazz.isAssignableFrom(HttpSession.class)) {
+            return req.getSession();
+        }
+        return null;
     }
 
     @Override
@@ -209,6 +248,8 @@ public class SimpleDispatchServlet extends HttpServlet {
                 } else {
                     if (parameter.isNamePresent()) {
                         System.out.println("参数名称`   ```````：" + parameter.getName());
+                        System.out.println("参数类型`   ```````：" + parameter.getType());
+                        System.out.println(Number.class.isAssignableFrom(parameter.getType()));
                     }
                 }
             }

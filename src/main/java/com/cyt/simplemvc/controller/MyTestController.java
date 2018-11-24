@@ -21,7 +21,7 @@ public class MyTestController {
     private NameService nameService;
 
     @MyRequestMapping("index")
-    public String index(@MyRequestParam(value = "cyt") String name, int age, HttpServletResponse response) {
+    public String index(@MyRequestParam(value = "cyt") String name, int age, Integer age1, HttpServletResponse response) {
         try {
             response.getWriter().write(nameService.getStr(name));
             System.out.println(nameService.getStr("index"));
