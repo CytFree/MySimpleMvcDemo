@@ -7,7 +7,6 @@ import com.cyt.simplemvc.annotation.MyRequestParam;
 import com.cyt.simplemvc.service.NameService;
 
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 
 /**
  * @author CaoYangTao
